@@ -1,141 +1,54 @@
-# Prédiction de prix de vente des logements
+# Prédiction de prix de vente des logements : Ridge, Lasso & Elastic Net
 
-Ce projet a été réalisé dans le cadre du cours d'Analyse Prédictive. Son objectif est d'étudier et de comparer les méthodes de régression Ridge et Lasso pour prédire le prix de vente des logements à partir d'un ensemble de caractéristiques immobilières.
+Projet R (Master 2 Data Science & Systèmes d'Information, Analyse Prédictive).
+Données : **Ames Housing** (ventes réelles à Ames, Iowa, 2006-2010, prix en dollars US).
 
-Le projet utilise le jeu de données Ames Housing et met en œuvre une analyse complète : exploration des données, prétraitement, modélisation, évaluation et comparaison des performances des modèles.
+## Contenu du projet (dossier `housing/`)
 
-## Objectif
+| Fichier | Rôle |
+|---|---|
+| `housing.Rproj` | Ouvre le projet dans RStudio (fixe le dossier de travail) |
+| `main.R` | Lance toute l'analyse, dans l'ordre |
+| `R/01_packages.R` | Installe et charge les packages, fixe la graine |
+| `R/functions.R` | **Fonctions partagées** : `prepare_ames()`, `make_new_x()`, `metrics_reg()` |
+| `R/02_exploration.R` | Graphiques d'exploration |
+| `R/03_preprocessing.R` | Prétraitement (appelle `prepare_ames()`) |
+| `R/04_ridge.R`, `R/05_lasso.R` | Modèles Ridge et Lasso (validation croisée) |
+| `R/06_comparison.R` | Comparaison Ridge / Lasso |
+| `R/07_prediction.R` | Exemple de prédiction |
+| `app/app.R` | **Application Shiny** (8 onglets, français, mode clair/sombre) |
+| `data/AmesHousing.csv` | Jeu de données |
+| `results/` | Graphiques et tableau générés par `main.R` |
 
-L'objectif principal est de comparer deux méthodes de régression pénalisée :
+L'analyse (`main.R`) et l'application utilisent **le même prétraitement** (`R/functions.R`),
+donc leurs résultats sont cohérents.
 
-- Ridge : réduit les coefficients sans les annuler complètement
-- Lasso : sélectionne les variables les plus importantes en réduisant certains coefficients à zéro
-
-Les modèles sont évalués selon des métriques de performance telles que :
-
-- RMSE
-- MAE
-- R²
-
-## Structure du projet
-
-```text
-Pr-diction-de-prix-de-vente-des-logements/
-├── README.md
-├── housing/
-│   ├── app/
-│   │   └── app.R
-│   ├── data/
-│   │   └── AmesHousing.csv
-│   ├── results/
-│   ├── R/
-│   │   ├── 01_packages.R
-│   │   ├── 02_exploration.R
-│   │   ├── 03_preprocessing.R
-│   │   ├── 04_ridge.R
-│   │   ├── 05_lasso.R
-│   │   ├── 06_comparison.R
-│   │   └── 07_prediction.R
-│   ├── main.R
-│   └── housing.Rproj
-└── Guide_Presentations_Analyse_Predictive.pdf
-```
-
-## Données
-
-Le projet utilise le dataset Ames Housing, qui contient plusieurs variables décrivant les logements, notamment :
-
-- surface habitable
-- qualité générale
-- année de construction
-- surface du sous-sol
-- garage
-- nombre de chambres
-- nombre de salles de bain
-- etc.
-
-La variable cible est le prix de vente (`SalePrice`).
-
-## Pipeline d'analyse
-
-Le script principal `housing/main.R` exécute les étapes suivantes :
-
-1. Chargement des packages nécessaires
-2. Lecture des données
-3. Exploration et visualisation des variables
-4. Prétraitement des données
-5. Modélisation Ridge
-6. Modélisation Lasso
-7. Comparaison des performances
-8. Exemple de prédiction
-9. Sauvegarde des résultats dans le dossier `housing/results/`
-
-## Application Shiny
-
-Un prototype d'application interactive est également disponible dans :
-
-- `housing/app/app.R`
-
-Cette application permet de :
-
-- choisir entre le modèle Ridge ou Lasso
-- saisir des caractéristiques d'une maison
-- obtenir une estimation du prix de vente
-- consulter les performances du modèle
-- visualiser les prédictions par rapport aux valeurs réelles
-
-## Prérequis
-
-Avant de lancer le projet, assurez-vous d'avoir installé les packages R suivants :
+## Installation (une seule fois, dans la console R)
 
 ```r
-install.packages(c("shiny", "glmnet", "caret", "ggplot2", "dplyr", "readr"))
+install.packages(c("shiny", "bslib", "plotly", "DT", "glmnet", "caret",
+                   "tidyverse", "corrplot", "Metrics", "scales"))
 ```
 
-## Exécution de l'analyse
+## Lancer l'analyse
 
-Ouvrez RStudio et exécutez le script principal :
+1. Double-cliquer sur `housing/housing.Rproj` (RStudio).
+2. Ouvrir `main.R` puis cliquer sur **Source** (ou `source("main.R")`).
+3. Les graphiques et `comparison_models.csv` sont écrits dans `results/`.
 
-```r
-source("housing/main.R")
-```
+## Lancer l'application
 
-Le script va charger les données, exécuter les analyses et générer les graphiques dans le dossier :
+1. Ouvrir `housing/app/app.R` dans RStudio.
+2. Cliquer sur **Run App** (ou, depuis `housing/` : `shiny::runApp("app")`).
 
-```text
-housing/results/
-```
+Onglets : Données · Exploration · Modèle · Variables · Comparaison · Robustesse · Prédiction · Théorie.
 
-## Exécution de l'application
+Options utiles de l'onglet Modèle :
+- **Exclure les 5 maisons de plus de 4 000 pi²** (ventes atypiques) : améliore et stabilise les résultats ;
+- **Modéliser log(prix)** : à utiliser avec l'exclusion ci-dessus (sinon le résultat peut être très instable) ;
+- l'onglet **Robustesse** répète l'évaluation sur plusieurs découpages aléatoires (moyenne ± écart-type).
+Le bouton lune/soleil en haut à droite bascule entre mode clair et mode sombre.
 
-Pour lancer l'application Shiny :
+## Reproductibilité
 
-```r
-setwd("housing")
-runApp("app")
-```
-
-ou directement depuis le dossier `housing/app` :
-
-```r
-source("app/app.R")
-```
-
-## Résultats attendus
-
-Le projet permet de comparer les deux méthodes de régression pénalisée et de déterminer laquelle donne les meilleurs résultats selon la métrique retenue.
-
-Les résultats incluent généralement :
-
-- une comparaison visuelle des performances
-- un exemple de prédiction sur une nouvelle maison
-- des graphiques de diagnostics et d'évaluation
-
-## Remarques
-
-Ce projet montre une approche d'analyse prédictive appliquée à un problème de régression. Il illustre bien l'intérêt des méthodes de régularisation dans le cadre de données avec un grand nombre de variables corrélées.
-
-## Licence
-
-Le projet est fourni à des fins pédagogiques dans le cadre du cours d'Analyse Prédictive.
-
+`set.seed(123)` dans `01_packages.R`; la graine est aussi réglable dans l'application.
