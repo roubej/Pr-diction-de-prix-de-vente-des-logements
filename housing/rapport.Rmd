@@ -1,0 +1,353 @@
+---
+title: "Ridge et Lasso pour la prédiction du prix de vente des logements"
+author: "Bejaoui Roua & Joudi Shayma"
+date: "`r format(Sys.Date(), '%d %m %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    theme: united
+    highlight: tango
+---
+
+<style>
+body {
+  font-family: "Segoe UI", Arial, sans-serif;
+  line-height: 1.7;
+  color: #1f2933;
+  background-color: #f7f7f7;
+}
+
+h1, h2, h3 {
+  color: #1d3557;
+}
+
+#TOC {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 15px 20px;
+  margin-bottom: 25px;
+}
+
+#TOC ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+#TOC li {
+  margin: 6px 0;
+}
+
+#TOC a {
+  color: #1d4f91;
+  text-decoration: none;
+}
+
+#TOC a:hover {
+  text-decoration: underline;
+}
+
+.main-container {
+  max-width: 1100px;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 20px 0;
+}
+
+th, td {
+  border: 1px solid #dfe3e8;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+blockquote {
+  border-left: 4px solid #2a9d8f;
+  background: #f3f9f9;
+  padding: 10px 15px;
+  margin: 20px 0;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align = "center")
+
+library(ggplot2)
+library(dplyr)
+library(glmnet)
+library(caret)
+library(knitr)
+```
+
+# 1. Introduction
+
+La prédiction du prix de vente d’un logement est un sujet très important en analyse prédictive, car il repose sur un grand nombre de variables et sur des relations souvent complexes entre elles. Dans ce travail, nous avons étudié deux méthodes de régression pénalisée : Ridge et Lasso.
+
+Le jeu de données utilisé est Ames Housing, un ensemble de données réelles sur des logements vendus à Ames, dans l’Iowa. Le but est de prédire le prix de vente à partir de variables comme la surface habitable, la qualité du logement, le quartier, l’année de construction, les équipements et d’autres caractéristiques structurelles.
+
+Nous avons choisi cette méthode parce que le problème possède beaucoup de variables explicatives, souvent corrélées entre elles. C’est précisément le type de situation pour lequel la régularisation est utile. Le projet vise à comparer les performances des deux modèles, à interpréter les résultats et à discuter de leurs limites.
+
+# 2. Cadre théorique
+
+## 2.1 Régression linéaire et problème de multicolinéarité
+
+La régression linéaire classique cherche à expliquer une variable cible continue $Y$ à partir d’un ensemble de variables explicatives $X_1, ..., X_p$ :
+
+$$
+Y = \beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p + \varepsilon
+$$
+
+Dans les données immobilières, plusieurs variables sont fortement corrélées, notamment celles liées à la taille, à la qualité et à l’état général du logement. Cela peut rendre les coefficients instables et augmenter le risque de surapprentissage.
+
+Pour répondre à ce problème, les méthodes de régularisation ajoutent une pénalité aux coefficients du modèle.
+
+## 2.2 Régression Ridge
+
+La régression Ridge ajoute une pénalité de type $L_2$ :
+
+$$
+\min_{\beta} \left\{ \sum_{i=1}^{n} (y_i - \beta_0 - \sum_{j=1}^{p} \beta_j x_{ij})^2 + \lambda \sum_{j=1}^{p} \beta_j^2 \right\}
+$$
+
+Cette pénalité réduit la taille des coefficients et limite l’effet de la collinéarité. Ridge est souvent très efficace pour la prédiction, surtout lorsque toutes les variables ont de l’information.
+
+## 2.3 Régression Lasso
+
+La régression Lasso applique une pénalité de type $L_1$ :
+
+$$
+\min_{\beta} \left\{ \sum_{i=1}^{n} (y_i - \beta_0 - \sum_{j=1}^{p} \beta_j x_{ij})^2 + \lambda \sum_{j=1}^{p} |\beta_j| \right\}
+$$
+
+La particularité de Lasso est qu’il peut annuler certains coefficients. On dit alors qu’il sélectionne les variables les plus importantes. Cela rend le modèle plus interprétable.
+
+## 2.4 Comparaison entre Ridge et Lasso
+
+Les deux méthodes sont similaires dans leur logique, mais elles ne se comportent pas de la même manière :
+
+- Ridge stabilise le modèle et réduit la variance ;
+- Lasso réduit le nombre de variables actives et améliore l’interprétation.
+
+Dans notre cas, le but principal est la prédiction du prix immobilier. C’est pourquoi il est intéressant de comparer les deux modèles sur le même jeu de données.
+
+# 3. Conditions d’application
+
+Les modèles Ridge et Lasso sont adaptés aux situations où :
+
+- la variable cible est quantitative continue ;
+- il y a beaucoup de variables explicatives ;
+- les variables sont corrélées ;
+- la standardisation peut être utile ;
+- les données sont hétérogènes et comportent plusieurs types de variables.
+
+Ces méthodes sont particulièrement utiles en présence de collinéarité, ce qui est courant dans les données immobilières. Elles permettent de contrôler le surapprentissage et de mieux généraliser sur de nouveaux logements.
+
+Le principal inconvénient est que leur performance dépend fortement du choix du paramètre $\lambda$, et que les modèles doivent être évalués avec une bonne validation croisée.
+
+# 4. Cas d’application
+
+Les méthodes de régression pénalisée sont utilisées dans plusieurs domaines :
+
+1. Finance : pour prédire le score de crédit ou les montants de prêt.
+2. Marketing : pour estimer la probabilité d’achat ou la valeur client.
+3. Santé : pour prédire des indicateurs de risque à partir de nombreux facteurs cliniques.
+4. Immobilier : pour prédire le prix d’un bien en fonction de ses caractéristiques.
+
+Le cas immobilier est particulièrement pertinent car le prix dépend de nombreuses variables liées à la qualité du bâtiment, à sa localisation et à son équipement.
+
+# 5. Données utilisées
+
+## 5.1 Source
+
+Le jeu de données utilisé est Ames Housing, un jeu réel sur des ventes immobilières à Ames, Iowa. Il a été documenté par Dean De Cock dans le cadre d’un projet d’analyse de régression.
+
+Le fichier utilisé dans le projet est :
+
+- `data/AmesHousing.csv`
+
+## 5.2 Description des variables
+
+La variable cible est :
+
+- `saleprice` : prix de vente du logement.
+
+Les variables explicatives comprennent des variables numériques et catégorielles comme :
+
+- `gr_liv_area` : surface habitable ;
+- `overall_qual` : qualité générale du logement ;
+- `year_built` : année de construction ;
+- `neighborhood` : quartier ;
+- `garage_cars` : nombre de places de garage ;
+- `total_bsmt_sf` : surface totale du sous-sol.
+
+Le jeu de données contient également des valeurs manquantes et des logements atypiques, ce qui rend le prétraitement encore plus important.
+
+# 6. Mise en œuvre sous R
+
+## 6.1 Chargement des packages
+
+```{r, echo=TRUE}
+packages <- c("tidyverse", "glmnet", "caret", "corrplot", "Metrics", "scales")
+new_packages <- packages[!(packages %in% installed.packages()[, "Package"])]
+
+if (length(new_packages) > 0) {
+  install.packages(new_packages)
+}
+
+library(tidyverse)
+library(glmnet)
+library(caret)
+library(corrplot)
+library(Metrics)
+library(scales)
+
+set.seed(123)
+```
+
+## 6.2 Chargement et exploration des données
+
+```{r, echo=TRUE}
+data <- read.csv("data/AmesHousing.csv", stringsAsFactors = FALSE)
+
+str(data)
+summary(data$saleprice)
+```
+
+## 6.3 Prétraitement
+
+Le prétraitement a été réalisé avec la fonction `prepare_ames()` présente dans le fichier `R/functions.R`. Cette étape est essentielle car le jeu de données contient à la fois des variables qualitatives et quantitatives, ainsi que des valeurs manquantes.
+
+```{r, echo=TRUE}
+source("R/functions.R")
+
+prep <- prepare_ames(data, p = 0.80, seed = 123)
+
+x_train <- prep$x_train
+x_test  <- prep$x_test
+y_train <- prep$y_train
+y_test  <- prep$y_test
+```
+
+Les étapes importantes ont été :
+
+- suppression des identifiants inutiles ;
+- conversion des variables textuelles en facteurs ;
+- séparation train/test ;
+- imputation des valeurs manquantes ;
+- encodage des variables catégorielles ;
+- création des matrices adaptées aux modèles pénalisés.
+
+## 6.4 Choix de lambda par validation croisée
+
+Pour chaque modèle, nous avons utilisé la validation croisée afin de choisir la valeur optimale de $\lambda$.
+
+```{r, echo=TRUE}
+set.seed(123)
+
+cv_ridge <- cv.glmnet(x = x_train, y = y_train, alpha = 0, nfolds = 10, standardize = TRUE)
+cv_lasso  <- cv.glmnet(x = x_train, y = y_train, alpha = 1, nfolds = 10, standardize = TRUE)
+
+lambda_ridge_min <- cv_ridge$lambda.min
+lambda_lasso_min <- cv_lasso$lambda.min
+```
+
+## 6.5 Entraînement des modèles
+
+```{r, echo=TRUE}
+ridge_model <- glmnet(x_train, y_train, alpha = 0, lambda = lambda_ridge_min, standardize = TRUE)
+lasso_model <- glmnet(x_train, y_train, alpha = 1, lambda = lambda_lasso_min, standardize = TRUE)
+
+pred_ridge <- as.numeric(predict(ridge_model, newx = x_test))
+pred_lasso <- as.numeric(predict(lasso_model, newx = x_test))
+```
+
+## 6.6 Évaluation des performances
+
+Les modèles ont été évalués avec les métriques les plus adaptées au problème de régression :
+
+- RMSE
+- MAE
+- $R^2$
+
+```{r, echo=TRUE}
+rmse_ridge <- RMSE(pred_ridge, y_test)
+mae_ridge  <- MAE(pred_ridge, y_test)
+r2_ridge   <- R2(pred_ridge, y_test)
+
+rmse_lasso <- RMSE(pred_lasso, y_test)
+mae_lasso  <- MAE(pred_lasso, y_test)
+r2_lasso   <- R2(pred_lasso, y_test)
+
+results <- data.frame(
+  Modele = c("Ridge", "Lasso"),
+  RMSE = c(rmse_ridge, rmse_lasso),
+  MAE = c(mae_ridge, mae_lasso),
+  R2 = c(r2_ridge, r2_lasso)
+)
+
+kable(results, digits = 4)
+```
+
+# 7. Résultats et interprétation
+
+Les performances obtenues sont les suivantes :
+
+- Ridge : RMSE = 24092.79, MAE = 14465.11, $R^2$ = 0.9127
+- Lasso : RMSE = 22898.02, MAE = 13841.28, $R^2$ = 0.9192
+
+Le Lasso obtient légèrement de meilleures performances que Ridge sur ce jeu de données. Cela montre que la sélection de variables est utile dans ce cas et que certaines variables ont un rôle plus important pour expliquer le prix de vente.
+
+```{r, echo=TRUE, fig.width=8, fig.height=5}
+ggplot(data.frame(Modele = c("Ridge", "Lasso"), RMSE = c(rmse_ridge, rmse_lasso)),
+       aes(x = Modele, y = RMSE, fill = Modele)) +
+  geom_col(width = 0.6) +
+  geom_text(aes(label = round(RMSE, 2)), vjust = -0.5) +
+  labs(title = "Comparaison du RMSE", x = "", y = "RMSE") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+Le nuage de points ci-dessous montre que les prédictions du modèle Lasso restent globalement proches des prix réels. La relation est proche de la droite $y = x$, ce qui confirme une bonne qualité prédictive.
+
+```{r, echo=TRUE, fig.width=8, fig.height=5}
+plot_data <- data.frame(Prix_reel = y_test, Prix_pred = pred_lasso)
+
+ggplot(plot_data, aes(x = Prix_reel, y = Prix_pred)) +
+  geom_point(alpha = 0.5) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
+  labs(title = "Lasso : prix réel vs prix prédit", x = "Prix réel", y = "Prix prédit") +
+  theme_minimal()
+```
+
+# 8. Interprétation métier
+
+Ces résultats sont satisfaisants pour un projet académique, car le modèle explique environ 92 % de la variance du prix de vente. Cela signifie que le modèle capte correctement la relation entre les caractéristiques du logement et son prix.
+
+En pratique, cela montre que des variables comme la surface habitable, la qualité générale, le quartier et la présence d’équipements jouent un rôle majeur dans la détermination du prix. Le Lasso est particulièrement intéressant ici, car il permet d’identifier les variables les plus influentes.
+
+Cependant, le modèle a aussi des limites : certains logements atypiques peuvent influencer les résultats, et les relations peuvent être non linéaires. Il serait utile d’explorer d’autres méthodes, comme les forêts aléatoires ou les modèles de boosting, pour voir si l’on peut améliorer la performance.
+
+# 9. Conclusion
+
+Dans ce projet, nous avons comparé deux méthodes de régression pénalisée pour prédire le prix de vente des logements : Ridge et Lasso. Les deux modèles donnent de bons résultats, mais Lasso est légèrement meilleur sur ce jeu de données.
+
+Le travail montre l’intérêt de la régularisation dans les problèmes où le nombre de variables est important et où il existe de la collinéarité. Cela correspond bien au cas du marché immobilier, où les caractéristiques d’un logement sont nombreuses et fortement liées entre elles.
+
+Le projet est donc pertinent d’un point de vue méthodologique, et les résultats obtenus sont convaincants. Les pistes d’amélioration principales concernent la validation, l’ajout de variables plus riches et la comparaison avec des modèles non linéaires.
+
+# 10. Références
+
+- De Cock, D. (2011). *Ames, Iowa: Alternative to the Boston Housing Data as an End of Semester Regression Project*. Journal of Statistics Education.
+- Tibshirani, R. (1996). Regression shrinkage and selection via the Lasso. *Journal of the Royal Statistical Society*.
+- Hoerl, A. E., & Kennard, R. W. (1970). Ridge regression: Biased estimation for nonorthogonal problems. *Technometrics*.
+- James, G., Witten, D., Hastie, T., & Tibshirani, R. (2013). *An Introduction to Statistical Learning*.
+
+# 11. Annexe : reproduction des résultats
+
+```{r, echo=TRUE}
+sessionInfo()
+```
